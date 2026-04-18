@@ -1,0 +1,8 @@
+node_modules
+.vs_code
+public
+/src/generated/prisma
+.env
+package-lock.json
+/generated/prisma
+.codex

@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Person {
+  id             String         @id @db.Uuid
+  nik            String?        @unique @db.VarChar(16)
+  passportNumber String?        @unique @map("passport_number") @db.VarChar(9)
+  name           String         @db.VarChar(50)
+  npwp           String         @db.VarChar(16)
+  address        String         @db.VarChar(200)
+  dateOfBirth    DateTime       @map("date_of_birth") @db.Date
+  createdAt      DateTime?      @map("created_at")
+  updatedAt      DateTime?      @map("updated_at")
+  workContracts  WorkContract[]
+
+  @@map("person")
+}
+
+model WorkContract {
+  workContractNumber String    @id @map("work_contract_number")
+  personId           String    @map("person_id") @db.Uuid
+  startDate          DateTime  @map("start_date") @db.Date
+  jobTitle           String    @map("job_title") @db.VarChar(40)
+  jobType            String    @default("year") @map("job_type") @db.VarChar(4)
+  jobYear            Int?      @map("job_year")
+  contractType       String    @default("hour") @map("contract_type") @db.VarChar(5)
+  salaryMonth        Int?      @map("salary_month")
+  salaryHour         Int?      @map("salary_hour")
+  leave              Int
+  sickLeave          Int       @map("sick_leave")
+  createdAt          DateTime? @map("created_at")
+  updatedAt          DateTime? @map("updated_at")
+  person             Person    @relation(fields: [personId], references: [id])
+
+  @@map("work_contract")
+}
+
+model User {
+  id        BigInt    @id @default(autoincrement())
+  username  String    @unique @db.VarChar(50)
+  password  String    @db.VarChar(50)
+  isAdmin   Boolean   @default(false) @map("is_admin")
+  createdAt DateTime  @map("created_at")
+  updatedAt DateTime  @map("updated_at")
+  sessions  Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id           BigInt   @id @default(autoincrement())
+  userId       BigInt   @map("user_id")
+  sessionToken String   @unique @map("session_token") @db.VarChar(255)
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @map("created_at")
+  updatedAt    DateTime @map("updated_at")
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
