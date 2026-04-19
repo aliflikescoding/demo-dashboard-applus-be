@@ -39,6 +39,14 @@ async function verifySession(req, res, next) {
   }
 }
 
+function verifyUser(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ message: "Authentication required." });
+  }
+
+  return next();
+}
+
 function verifyAdmin(req, res, next) {
   if (!req.user?.isAdmin) {
     return res.status(403).json({ message: "Admin access required." });
@@ -50,4 +58,5 @@ function verifyAdmin(req, res, next) {
 module.exports = {
   verifyAdmin,
   verifySession,
+  verifyUser,
 };

@@ -7,11 +7,15 @@ const {
   getWorkContracts,
   updateWorkContract,
 } = require("../controllers/workContract.controller");
-const { verifyAdmin, verifySession } = require("../middleware/verify.admin");
+const {
+  verifyAdmin,
+  verifySession,
+  verifyUser,
+} = require("../middleware/verify");
 
 const router = express.Router();
 
-router.use(verifySession);
+router.use(verifySession, verifyUser);
 
 router.post("/", createWorkContract);
 router.get("/", getWorkContracts);

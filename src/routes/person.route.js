@@ -7,11 +7,15 @@ const {
   getPersons,
   updatePerson,
 } = require("../controllers/person.controller");
-const { verifyAdmin, verifySession } = require("../middleware/verify.admin");
+const {
+  verifyAdmin,
+  verifySession,
+  verifyUser,
+} = require("../middleware/verify");
 
 const router = express.Router();
 
-router.use(verifySession);
+router.use(verifySession, verifyUser);
 
 router.post("/", createPerson);
 router.get("/", getPersons);
