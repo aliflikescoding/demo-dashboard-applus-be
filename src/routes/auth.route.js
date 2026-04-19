@@ -6,7 +6,7 @@ const {
   login,
   logout,
 } = require("../controllers/auth.controller");
-const { verifyAdmin, verifySession } = require("../middleware/verify.admin");
+const { verifyAdmin, verifySession } = require("../middleware/verify");
 
 const router = express.Router();
 
