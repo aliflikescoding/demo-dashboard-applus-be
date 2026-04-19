@@ -6,7 +6,7 @@ const {
   getUserById,
   getUsers,
   updateUser,
-} = require("../controllers/user.auth");
+} = require("../controllers/user.controller");
 const { verifyAdmin, verifySession } = require("../middleware/verify.admin");
 
 const router = express.Router();
