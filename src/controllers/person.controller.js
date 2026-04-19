@@ -5,6 +5,13 @@ const prisma = require("../../lib/prisma");
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
+const PERSON_FIELD_LIMITS = {
+  nik: 16,
+  passportNumber: 9,
+  name: 50,
+  npwp: 16,
+  address: 200,
+};
 
 function parsePositiveInt(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -30,27 +37,97 @@ function normalizePerson(person) {
   };
 }
 
+function normalizeOptionalString(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed === "" ? null : trimmed;
+}
+
+function normalizeRequiredString(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  return value.trim();
+}
+
+function validateMaxLength(field, value) {
+  const maxLength = PERSON_FIELD_LIMITS[field];
+
+  if (typeof value === "string" && value.length > maxLength) {
+    return `${field} must not exceed ${maxLength} characters.`;
+  }
+
+  return null;
+}
+
 function buildPersonData(payload) {
   const data = {};
 
   if (payload.nik !== undefined) {
-    data.nik = payload.nik || null;
+    data.nik = normalizeOptionalString(payload.nik);
+
+    const error = validateMaxLength("nik", data.nik);
+
+    if (error) {
+      return { error };
+    }
   }
 
   if (payload.passportNumber !== undefined) {
-    data.passportNumber = payload.passportNumber || null;
+    data.passportNumber = normalizeOptionalString(payload.passportNumber);
+
+    const error = validateMaxLength("passportNumber", data.passportNumber);
+
+    if (error) {
+      return { error };
+    }
   }
 
   if (payload.name !== undefined) {
-    data.name = payload.name;
+    data.name = normalizeRequiredString(payload.name);
+
+    if (!data.name) {
+      return { error: "name is required." };
+    }
+
+    const error = validateMaxLength("name", data.name);
+
+    if (error) {
+      return { error };
+    }
   }
 
   if (payload.npwp !== undefined) {
-    data.npwp = payload.npwp;
+    data.npwp = normalizeRequiredString(payload.npwp);
+
+    if (!data.npwp) {
+      return { error: "npwp is required." };
+    }
+
+    const error = validateMaxLength("npwp", data.npwp);
+
+    if (error) {
+      return { error };
+    }
   }
 
   if (payload.address !== undefined) {
-    data.address = payload.address;
+    data.address = normalizeRequiredString(payload.address);
+
+    if (!data.address) {
+      return { error: "address is required." };
+    }
+
+    const error = validateMaxLength("address", data.address);
+
+    if (error) {
+      return { error };
+    }
   }
 
   if (payload.dateOfBirth !== undefined) {
@@ -103,6 +180,12 @@ async function createPerson(req, res, next) {
   } catch (error) {
     if (error.code === "P2002") {
       return res.status(409).json({ message: "nik or passportNumber already exists." });
+    }
+
+    if (error.code === "P2000") {
+      return res.status(400).json({
+        message: "One or more fields exceed the allowed column length.",
+      });
     }
 
     return next(error);
@@ -190,6 +273,12 @@ async function updatePerson(req, res, next) {
   } catch (error) {
     if (error.code === "P2002") {
       return res.status(409).json({ message: "nik or passportNumber already exists." });
+    }
+
+    if (error.code === "P2000") {
+      return res.status(400).json({
+        message: "One or more fields exceed the allowed column length.",
+      });
     }
 
     return next(error);
