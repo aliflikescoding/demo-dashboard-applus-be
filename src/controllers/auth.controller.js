@@ -41,45 +41,6 @@ async function createSession(userId) {
   return { sessionToken: session.sessionToken, expiresAt: session.expiresAt };
 }
 
-async function register(req, res, next) {
-  try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ message: "Username and password are required." });
-    }
-
-    const existingUser = await prisma.user.findUnique({
-      where: { username },
-    });
-
-    if (existingUser) {
-      return res.status(409).json({ message: "Username is already in use." });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        username,
-        password: hashedPassword,
-        isAdmin: false,
-      },
-    });
-
-    const { sessionToken, expiresAt } = await createSession(user.id);
-
-    res.cookie(SESSION_COOKIE_NAME, sessionToken, buildCookieOptions(expiresAt));
-
-    return res.status(201).json({
-      message: "User registered successfully.",
-      user: sanitizeUser(user),
-    });
-  } catch (error) {
-    return next(error);
-  }
-}
-
 async function login(req, res, next) {
   try {
     const { username, password } = req.body;
