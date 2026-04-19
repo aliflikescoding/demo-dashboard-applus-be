@@ -3,6 +3,14 @@ const prisma = require("../../lib/prisma");
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
+const WORK_CONTRACT_FIELD_LIMITS = {
+  jobTitle: 40,
+  jobType: 4,
+  contractType: 5,
+};
+const WORK_CONTRACT_NUMBER_PREFIX = "WC";
+const WORK_CONTRACT_NUMBER_SEQUENCE_LENGTH = 6;
+const MAX_WORK_CONTRACT_NUMBER_ATTEMPTS = 5;
 
 function parsePositiveInt(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -32,6 +40,24 @@ function normalizeInt(value, fieldName) {
   return { value: parsed };
 }
 
+function normalizeRequiredString(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  return value.trim();
+}
+
+function validateMaxLength(field, value) {
+  const maxLength = WORK_CONTRACT_FIELD_LIMITS[field];
+
+  if (typeof value === "string" && value.length > maxLength) {
+    return `${field} must not exceed ${maxLength} characters.`;
+  }
+
+  return null;
+}
+
 function normalizeDate(value, fieldName) {
   if (value === undefined) {
     return { value: undefined };
@@ -44,6 +70,34 @@ function normalizeDate(value, fieldName) {
   }
 
   return { value: parsed };
+}
+
+function getWorkContractNumberPrefix(date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+
+  return `${WORK_CONTRACT_NUMBER_PREFIX}${year}${month}`;
+}
+
+async function generateWorkContractNumber(startDate) {
+  const prefix = getWorkContractNumberPrefix(startDate);
+  const latestWorkContract = await prisma.workContract.findFirst({
+    where: {
+      workContractNumber: {
+        startsWith: prefix,
+      },
+    },
+    orderBy: {
+      workContractNumber: "desc",
+    },
+  });
+
+  const latestSequence = latestWorkContract
+    ? Number.parseInt(latestWorkContract.workContractNumber.slice(prefix.length), 10)
+    : 0;
+  const nextSequence = Number.isNaN(latestSequence) ? 1 : latestSequence + 1;
+
+  return `${prefix}${String(nextSequence).padStart(WORK_CONTRACT_NUMBER_SEQUENCE_LENGTH, "0")}`;
 }
 
 function normalizeWorkContract(workContract) {
@@ -81,7 +135,11 @@ function buildWorkContractData(payload) {
   const data = {};
 
   if (payload.personId !== undefined) {
-    data.personId = payload.personId;
+    data.personId = normalizeRequiredString(payload.personId);
+
+    if (!data.personId) {
+      return { error: "personId is required." };
+    }
   }
 
   if (payload.startDate !== undefined) {
@@ -95,11 +153,31 @@ function buildWorkContractData(payload) {
   }
 
   if (payload.jobTitle !== undefined) {
-    data.jobTitle = payload.jobTitle;
+    data.jobTitle = normalizeRequiredString(payload.jobTitle);
+
+    if (!data.jobTitle) {
+      return { error: "jobTitle is required." };
+    }
+
+    const error = validateMaxLength("jobTitle", data.jobTitle);
+
+    if (error) {
+      return { error };
+    }
   }
 
   if (payload.jobType !== undefined) {
-    data.jobType = payload.jobType;
+    data.jobType = normalizeRequiredString(payload.jobType);
+
+    if (!data.jobType) {
+      return { error: "jobType is required." };
+    }
+
+    const error = validateMaxLength("jobType", data.jobType);
+
+    if (error) {
+      return { error };
+    }
   }
 
   if (payload.jobYear !== undefined) {
@@ -113,7 +191,17 @@ function buildWorkContractData(payload) {
   }
 
   if (payload.contractType !== undefined) {
-    data.contractType = payload.contractType;
+    data.contractType = normalizeRequiredString(payload.contractType);
+
+    if (!data.contractType) {
+      return { error: "contractType is required." };
+    }
+
+    const error = validateMaxLength("contractType", data.contractType);
+
+    if (error) {
+      return { error };
+    }
   }
 
   if (payload.salaryMonth !== undefined) {
@@ -162,7 +250,6 @@ function buildWorkContractData(payload) {
 async function createWorkContract(req, res, next) {
   try {
     const {
-      workContractNumber,
       personId,
       startDate,
       jobTitle,
@@ -175,9 +262,9 @@ async function createWorkContract(req, res, next) {
       sickLeave,
     } = req.body;
 
-    if (!workContractNumber || !personId || !startDate || !jobTitle) {
+    if (!personId || !startDate || !jobTitle) {
       return res.status(400).json({
-        message: "workContractNumber, personId, startDate, and jobTitle are required.",
+        message: "personId, startDate, and jobTitle are required.",
       });
     }
 
@@ -204,27 +291,51 @@ async function createWorkContract(req, res, next) {
       return res.status(400).json({ message: error });
     }
 
-    const workContract = await prisma.workContract.create({
-      data: {
-        workContractNumber,
-        ...data,
-      },
-      include: {
-        person: true,
-      },
-    });
+    let workContract;
+
+    for (let attempt = 0; attempt < MAX_WORK_CONTRACT_NUMBER_ATTEMPTS; attempt += 1) {
+      const generatedWorkContractNumber = await generateWorkContractNumber(data.startDate);
+
+      try {
+        workContract = await prisma.workContract.create({
+          data: {
+            workContractNumber: generatedWorkContractNumber,
+            ...data,
+          },
+          include: {
+            person: true,
+          },
+        });
+
+        break;
+      } catch (createError) {
+        if (createError.code === "P2002") {
+          continue;
+        }
+
+        throw createError;
+      }
+    }
+
+    if (!workContract) {
+      return res.status(409).json({
+        message: "Failed to generate a unique work contract number.",
+      });
+    }
 
     return res.status(201).json({
       message: "Work contract created successfully.",
       workContract: normalizeWorkContract(workContract),
     });
   } catch (error) {
-    if (error.code === "P2002") {
-      return res.status(409).json({ message: "Work contract number already exists." });
-    }
-
     if (error.code === "P2003") {
       return res.status(400).json({ message: "Invalid personId." });
+    }
+
+    if (error.code === "P2000") {
+      return res.status(400).json({
+        message: "One or more fields exceed the allowed column length.",
+      });
     }
 
     return next(error);
@@ -323,6 +434,12 @@ async function updateWorkContract(req, res, next) {
   } catch (error) {
     if (error.code === "P2003") {
       return res.status(400).json({ message: "Invalid personId." });
+    }
+
+    if (error.code === "P2000") {
+      return res.status(400).json({
+        message: "One or more fields exceed the allowed column length.",
+      });
     }
 
     return next(error);
