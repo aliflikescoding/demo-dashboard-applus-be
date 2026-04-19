@@ -111,5 +111,5 @@ module.exports = {
   getCurrentUser,
   login,
   logout,
-  register,
+  sanitizeUser,
 };

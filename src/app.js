@@ -3,6 +3,7 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 
 const authRouter = require("./routes/auth.route");
+const userRouter = require("./routes/user.route");
 
 const app = express();
 const port = Number(process.env.PORT || 8000);
@@ -20,6 +21,7 @@ app.use(cookieParser());
 const apiRouter = express.Router();
 
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/users", userRouter);
 
 apiRouter.get("/health", (_req, res) => {
   res.status(200).json({ message: "OK" });
