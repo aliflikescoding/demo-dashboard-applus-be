@@ -6,6 +6,11 @@ const authRouter = require("./routes/auth.route");
 const personRouter = require("./routes/person.route");
 const userRouter = require("./routes/user.route");
 const workContractRouter = require("./routes/workContract.route");
+const {
+  SESSION_CLEANUP_INTERVAL_MINUTES,
+  SESSION_CLEANUP_INTERVAL_MS,
+  deleteExpiredSessions,
+} = require("./lib/session");
 
 const app = express();
 const port = Number(process.env.PORT || 8000);
@@ -41,6 +46,24 @@ app.use((err, _req, res, _next) => {
   });
 });
 
+async function runExpiredSessionCleanup() {
+  try {
+    const deletedCount = await deleteExpiredSessions();
+
+    if (deletedCount > 0) {
+      console.log(`Deleted ${deletedCount} expired session(s).`);
+    }
+  } catch (error) {
+    console.error("Failed to clean up expired sessions.", error);
+  }
+}
+
+void runExpiredSessionCleanup();
+setInterval(runExpiredSessionCleanup, SESSION_CLEANUP_INTERVAL_MS);
+
 app.listen(port, () => {
   console.log(`Listening to port ${port}`);
+  console.log(
+    `Expired session cleanup runs every ${SESSION_CLEANUP_INTERVAL_MINUTES} minute(s).`,
+  );
 });
