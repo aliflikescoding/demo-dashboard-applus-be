@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node --env-file=.env src/app.js",
     "devstart": "node --watch --env-file=.env src/app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "generate:admin": "node ./prisma/scripts/generateAdmin.js"
   },
   "keywords": [],
   "author": "",

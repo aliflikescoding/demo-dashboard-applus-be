@@ -1,4 +1,4 @@
-const prisma = require("../lib/prisma");
+const prisma = require("../../lib/prisma");
 const { SESSION_COOKIE_NAME } = require("../controllers/auth.controller");
 
 async function verifySession(req, res, next) {

@@ -1,7 +1,7 @@
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 
-const prisma = require("../lib/prisma");
+const prisma = require("../../lib/prisma");
 
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "session_token";
 const SESSION_TTL_DAYS = Number(process.env.SESSION_TTL_DAYS || 7);
