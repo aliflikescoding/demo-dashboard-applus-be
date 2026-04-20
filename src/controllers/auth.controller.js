@@ -3,20 +3,10 @@ const crypto = require("crypto");
 
 const prisma = require("../../lib/prisma");
 const {
+  getSessionCookieOptions,
   SESSION_COOKIE_NAME,
   SESSION_TTL_MS,
 } = require("../lib/session");
-
-function buildCookieOptions(expiresAt) {
-  const isSecure = process.env.NODE_ENV === "production";
-
-  return {
-    httpOnly: true,
-    sameSite: isSecure ? "none" : "lax",
-    secure: isSecure,
-    expires: expiresAt,
-  };
-}
 
 function sanitizeUser(user) {
   return {
@@ -67,7 +57,7 @@ async function login(req, res, next) {
 
     const { sessionToken, expiresAt } = await createSession(user.id);
 
-    res.cookie(SESSION_COOKIE_NAME, sessionToken, buildCookieOptions(expiresAt));
+    res.cookie(SESSION_COOKIE_NAME, sessionToken, getSessionCookieOptions(expiresAt));
 
     return res.status(200).json({
       message: "Login successful.",
@@ -88,7 +78,7 @@ async function logout(req, res, next) {
       });
     }
 
-    res.clearCookie(SESSION_COOKIE_NAME, buildCookieOptions(new Date(0)));
+    res.clearCookie(SESSION_COOKIE_NAME, getSessionCookieOptions());
 
     return res.status(200).json({ message: "Logout successful." });
   } catch (error) {

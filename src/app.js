@@ -10,10 +10,16 @@ const {
   SESSION_CLEANUP_INTERVAL_MINUTES,
   SESSION_CLEANUP_INTERVAL_MS,
   deleteExpiredSessions,
+  isProduction,
 } = require("./lib/session");
 
 const app = express();
 const port = Number(process.env.PORT || 8000);
+const trustProxy = process.env.TRUST_PROXY || (isProduction ? "1" : "");
+
+if (trustProxy) {
+  app.set("trust proxy", trustProxy);
+}
 
 function normalizeOrigin(origin) {
   return origin?.trim().replace(/\/$/, "");
