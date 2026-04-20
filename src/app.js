@@ -15,9 +15,32 @@ const {
 const app = express();
 const port = Number(process.env.PORT || 8000);
 
+function normalizeOrigin(origin) {
+  return origin?.trim().replace(/\/$/, "");
+}
+
+function getAllowedOrigins() {
+  return (process.env.FE_URL || "")
+    .split(",")
+    .map(normalizeOrigin)
+    .filter(Boolean);
+}
+
+const allowedOrigins = getAllowedOrigins();
+
 app.use(
   cors({
-    origin: (process.env.FE_URL),
+    origin(origin, callback) {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(normalizeOrigin(origin))) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origin ${origin} is not allowed by CORS.`));
+    },
     credentials: true,
   }),
 );

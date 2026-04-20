@@ -8,10 +8,12 @@ const {
 } = require("../lib/session");
 
 function buildCookieOptions(expiresAt) {
+  const isSecure = process.env.NODE_ENV === "production";
+
   return {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: isSecure ? "none" : "lax",
+    secure: isSecure,
     expires: expiresAt,
   };
 }
