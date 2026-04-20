@@ -19,11 +19,40 @@ function normalizeOrigin(origin) {
   return origin?.trim().replace(/\/$/, "");
 }
 
+function expandOriginVariants(origin) {
+  if (!origin) {
+    return [];
+  }
+
+  try {
+    const url = new URL(origin);
+    const variants = new Set([normalizeOrigin(url.origin)]);
+
+    if (url.hostname.startsWith("www.")) {
+      variants.add(
+        normalizeOrigin(`${url.protocol}//${url.hostname.slice(4)}${url.port ? `:${url.port}` : ""}`),
+      );
+    } else {
+      variants.add(
+        normalizeOrigin(`${url.protocol}//www.${url.hostname}${url.port ? `:${url.port}` : ""}`),
+      );
+    }
+
+    return [...variants];
+  } catch {
+    return [normalizeOrigin(origin)];
+  }
+}
+
 function getAllowedOrigins() {
-  return (process.env.FE_URL || "")
-    .split(",")
-    .map(normalizeOrigin)
-    .filter(Boolean);
+  return [
+    ...new Set(
+      (process.env.FE_URL || "")
+        .split(",")
+        .flatMap((origin) => expandOriginVariants(origin.trim()))
+        .filter(Boolean),
+    ),
+  ];
 }
 
 const allowedOrigins = getAllowedOrigins();
@@ -86,6 +115,7 @@ setInterval(runExpiredSessionCleanup, SESSION_CLEANUP_INTERVAL_MS);
 
 app.listen(port, () => {
   console.log(`Listening to port ${port}`);
+  console.log(`Allowed CORS origins: ${allowedOrigins.join(", ") || "(none configured)"}`);
   console.log(
     `Expired session cleanup runs every ${SESSION_CLEANUP_INTERVAL_MINUTES} minute(s).`,
   );
